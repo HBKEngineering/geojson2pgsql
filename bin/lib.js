@@ -1,6 +1,6 @@
-var  util = require("util");
+var util = require("util");
 
-const {  Client } = require("pg");
+const { Client } = require("pg");
 
 var getFeatures = function(data) {
   switch (data.type) {
@@ -35,7 +35,7 @@ var asWKT = function(geometry, srid) {
         "SRID=%d;LINESTRING(%s)",
         srid,
         geometry.coordinates
-          .map(function(x) {
+          .map(l(x) {
             return x.join(" ");
           })
           .join(",")
@@ -57,7 +57,7 @@ const client = new Client({
   connectionString: process.env.PG_CONNECTION_STRING
 });
 
-client.connect(function(err) {
+client.connect(l(err) {
   if (err) {
     throw err;
   }
