@@ -4,7 +4,6 @@
 var path = require("path");
 var lib = require("./lib");
 
-
 var optimist = require("optimist").usage(
     "Usage: $0 [<options>] <GeoJSON file> [[schema.]<table>]"
   ),

@@ -1,7 +1,6 @@
-var path = require("path"),
-  util = require("util");
+var  util = require("util");
 
-const { Pool, Client } = require("pg");
+const {  Client } = require("pg");
 
 var getFeatures = function(data) {
   switch (data.type) {
@@ -16,19 +15,6 @@ var getFeatures = function(data) {
   }
 };
 
-var getType = function(val) {
-  switch (typeof val) {
-    case "number":
-      return "numeric";
-
-    case "string":
-      return "varchar";
-
-    default:
-      throw new Error("Unsupported type: " + typeof val);
-  }
-};
-
 var getDimensionality = function(geometry) {
   switch (geometry.type) {
     case "LineString":
@@ -39,25 +25,6 @@ var getDimensionality = function(geometry) {
 
     default:
       throw new Error("Unsupported GeoJSON geometry type: " + geometry.type);
-  }
-};
-
-var getGeometryType = function(geometry) {
-  var dimensionality = getDimensionality(geometry);
-
-  switch (dimensionality) {
-    case 2:
-      return geometry.type;
-
-    case 3:
-      // TODO allow an option to make this '<type>M'
-      return geometry.type + "Z";
-
-    case 4:
-      return geometry.type + "ZM";
-
-    default:
-      throw new Error("Unsupported number of dimensions: " + dimensionality);
   }
 };
 
@@ -102,42 +69,23 @@ client.on("drain", function() {
 });
 
 module.exports.addTable = function(target, data, cb) {
-  var sampleFeature = getFeatures(data)[0];
-
-  // TODO make this DRYer
-  var idType = getType(sampleFeature.id),
-    geometryType = getGeometryType(sampleFeature.geometry),
-    srid = 4326; // TODO make this configurable, sample it from the features list
-
   // TODO don't always do this
-  client.query(util.format("DROP TABLE IF EXISTS %s", target));
-  client.query(
-    util.format(
-      "CREATE TABLE %s (id %s NOT NULL, properties JSONB, geometry GEOMETRY(%s, %d), PRIMARY KEY(id))",
-      target, // TODO sanitize
-      idType,
-      geometryType,
-      srid
-    ),
-    function(err) {
-      if (err) {
-        console.warn(err);
-        cb(err);
-      } else {
-        cb(false);
-      }
+  client.query(`DROP TABLE IF EXISTS ${target}`);
+  var createTableQuery = `CREATE TABLE ${target} (id BIGSERIAL UNIQUE NOT NULL, geojson_id VARCHAR, properties JSONB, geometry GEOMETRY, PRIMARY KEY(id))`;
+  console.log(createTableQuery);
+
+  client.query(createTableQuery, function(err) {
+    if (err) {
+      console.warn(err);
+      cb(err);
+    } else {
+      cb(false);
     }
-  );
+  });
 };
 
 module.exports.addData = function(data, target) {
-
-  var sampleFeature = getFeatures(data)[0];
-
-  // TODO make this DRYer
-  var idType = getType(sampleFeature.id),
-    geometryType = getGeometryType(sampleFeature.geometry),
-    srid = 4326; // TODO make this configurable, sample it from the features list
+  var srid = 4326; // TODO make this configurable, sample it from the features list
 
   getFeatures(data).forEach(function(feature) {
     var params = [
@@ -146,10 +94,7 @@ module.exports.addData = function(data, target) {
       asWKT(feature.geometry, srid)
     ];
 
-    var insertQuery = util.format(
-      "INSERT INTO %s (id, properties, geometry) VALUES ($1, $2, $3)",
-      target
-    );
+    var insertQuery = `INSERT INTO ${target} (geojson_id, properties, geometry) VALUES ($1, $2, $3)`;
 
     client.query(insertQuery, params, function(err) {
       console.log(insertQuery);
