@@ -52,7 +52,6 @@ client.connect(function(err) {
 
 client.on("drain", function() {
   console.log("drained.");
-  setImmediate(process.exit);
 });
 
 module.exports.addTable = function(target, data, cb) {
@@ -71,10 +70,12 @@ module.exports.addTable = function(target, data, cb) {
   });
 };
 
-module.exports.addData = function(data, target) {
+module.exports.addData = function(data, target, callback) {
   var srid = 4326; // TODO make this configurable, sample it from the features list
 
-  getFeatures(data).forEach(function(feature) {
+  // TODO make this promise-based rather than the ugly incrementer
+  var itemsProcessed = 0;
+  getFeatures(data).forEach(function(feature, index, array) {
     var params = [
       feature.id,
       feature.properties,
@@ -84,9 +85,13 @@ module.exports.addData = function(data, target) {
     var insertQuery = `INSERT INTO ${target} (geojson_id, properties, geometry) VALUES ($1, $2, $3)`;
 
     client.query(insertQuery, params, function(err) {
-      console.log(insertQuery);
       if (err) {
         console.warn(err);
+      }
+
+      itemsProcessed++;
+      if (itemsProcessed === array.length) {
+        callback(null, data);
       }
     });
   });

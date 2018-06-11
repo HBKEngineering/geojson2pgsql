@@ -2,7 +2,7 @@
 
 "use strict";
 var path = require("path");
-var lib = require("./lib");
+var lib = require("./index");
 
 var optimist = require("optimist").usage(
     "Usage: $0 [<options>] <GeoJSON file> [[schema.]<table>]"
