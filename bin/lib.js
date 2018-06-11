@@ -15,19 +15,6 @@ var getFeatures = function(data) {
   }
 };
 
-var getDimensionality = function(geometry) {
-  switch (geometry.type) {
-    case "LineString":
-      return geometry.coordinates[0].length;
-
-    case "Point":
-      return geometry.coordinates.length;
-
-    default:
-      throw new Error("Unsupported GeoJSON geometry type: " + geometry.type);
-  }
-};
-
 var asWKT = function(geometry, srid) {
   switch (geometry.type) {
     case "LineString":
@@ -35,7 +22,7 @@ var asWKT = function(geometry, srid) {
         "SRID=%d;LINESTRING(%s)",
         srid,
         geometry.coordinates
-          .map(l(x) {
+          .map(function(x) {
             return x.join(" ");
           })
           .join(",")
@@ -57,7 +44,7 @@ const client = new Client({
   connectionString: process.env.PG_CONNECTION_STRING
 });
 
-client.connect(l(err) {
+client.connect(function(err) {
   if (err) {
     throw err;
   }
