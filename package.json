@@ -2,7 +2,7 @@
   "name": "geojson2pgsql",
   "version": "0.0.1",
   "description": "Import GeoJSON into PostgreSQL",
-  "bin": "bin/geojson2pgsql.js",
+  "bin": "bin/cli.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/stamen/geojson2pgsql.git"

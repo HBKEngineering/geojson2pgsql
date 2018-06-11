@@ -1,20 +1,7 @@
-#!/usr/bin/env node
-
-"use strict";
-
 var path = require("path"),
   util = require("util");
 
 const { Pool, Client } = require("pg");
-var optimist = require("optimist").usage(
-    "Usage: $0 [<options>] <GeoJSON file> [[schema.]<table>]"
-  ),
-  argv = optimist.argv;
-
-if (argv._.length < 1) {
-  optimist.showHelp();
-  process.exit(1);
-}
 
 var getFeatures = function(data) {
   switch (data.type) {
@@ -99,18 +86,6 @@ var asWKT = function(geometry, srid) {
   }
 };
 
-var source = argv._.shift(),
-  target = argv._.shift() || path.basename(source, path.extname(source));
-
-// TODO special-case '-' for stdin
-var data = require(path.join(process.cwd(), source));
-
-var sampleFeature = getFeatures(data)[0];
-
-var idType = getType(sampleFeature.id),
-  geometryType = getGeometryType(sampleFeature.geometry),
-  srid = 4326; // TODO make this configurable, sample it from the features list
-
 const client = new Client({
   connectionString: process.env.PG_CONNECTION_STRING
 });
@@ -126,35 +101,61 @@ client.on("drain", function() {
   setImmediate(process.exit);
 });
 
-// TODO don't always do this
-client.query(util.format("DROP TABLE IF EXISTS %s", target));
-client.query(
-  util.format(
-    "CREATE TABLE %s (id %s NOT NULL, properties JSONB, geometry GEOMETRY(%s, %d), PRIMARY KEY(id))",
-    target, // TODO sanitize
-    idType,
-    geometryType,
-    srid
-  ),
-  function(err) {
-    if (err) {
-      console.warn(err);
+module.exports.addTable = function(target, data, cb) {
+  var sampleFeature = getFeatures(data)[0];
+
+  // TODO make this DRYer
+  var idType = getType(sampleFeature.id),
+    geometryType = getGeometryType(sampleFeature.geometry),
+    srid = 4326; // TODO make this configurable, sample it from the features list
+
+  // TODO don't always do this
+  client.query(util.format("DROP TABLE IF EXISTS %s", target));
+  client.query(
+    util.format(
+      "CREATE TABLE %s (id %s NOT NULL, properties JSONB, geometry GEOMETRY(%s, %d), PRIMARY KEY(id))",
+      target, // TODO sanitize
+      idType,
+      geometryType,
+      srid
+    ),
+    function(err) {
+      if (err) {
+        console.warn(err);
+        cb(err);
+      } else {
+        cb(false);
+      }
     }
-  }
-);
+  );
+};
 
-var insertQuery = util.format(
-  "INSERT INTO %s (id, properties, geometry) VALUES ($1, $2, $3)",
-  target
-);
+module.exports.addData = function(data, target) {
 
-getFeatures(data).forEach(function(feature) {
-  var params = [feature.id, feature.properties, asWKT(feature.geometry, srid)];
+  var sampleFeature = getFeatures(data)[0];
 
-  client.query(insertQuery, params, function(err) {
-    console.log(insertQuery);
-    if (err) {
-      console.warn(err);
-    }
+  // TODO make this DRYer
+  var idType = getType(sampleFeature.id),
+    geometryType = getGeometryType(sampleFeature.geometry),
+    srid = 4326; // TODO make this configurable, sample it from the features list
+
+  getFeatures(data).forEach(function(feature) {
+    var params = [
+      feature.id,
+      feature.properties,
+      asWKT(feature.geometry, srid)
+    ];
+
+    var insertQuery = util.format(
+      "INSERT INTO %s (id, properties, geometry) VALUES ($1, $2, $3)",
+      target
+    );
+
+    client.query(insertQuery, params, function(err) {
+      console.log(insertQuery);
+      if (err) {
+        console.warn(err);
+      }
+    });
   });
-});
+};
