@@ -40,59 +40,70 @@ var asWKT = function(geometry, srid) {
   }
 };
 
-const client = new Client({
-  connectionString: process.env.PG_CONNECTION_STRING
-});
+module.exports = function(connectionString) {
+  const client = new Client({
+    connectionString: connectionString
+  });
 
-client.connect(function(err) {
-  if (err) {
-    throw err;
-  }
-});
+  client.connect(function(err) {
 
-client.on("drain", function() {
-  console.log("drained.");
-});
-
-module.exports.addTable = function(target, data, cb) {
-  // TODO don't always do this
-  client.query(`DROP TABLE IF EXISTS ${target}`);
-  var createTableQuery = `CREATE TABLE ${target} (id BIGSERIAL UNIQUE NOT NULL, geojson_id VARCHAR, properties JSONB, geometry GEOMETRY, PRIMARY KEY(id))`;
-  console.log(createTableQuery);
-
-  client.query(createTableQuery, function(err) {
+    console.log("connected")
     if (err) {
-      console.warn(err);
-      cb(err);
-    } else {
-      cb(false);
+      throw err;
     }
   });
-};
 
-module.exports.addData = function(data, target, callback) {
-  var srid = 4326; // TODO make this configurable, sample it from the features list
-
-  // TODO make this promise-based rather than the ugly incrementer
-  var itemsProcessed = 0;
-  getFeatures(data).forEach(function(feature, index, array) {
-    var params = [
-      feature.id,
-      feature.properties,
-      asWKT(feature.geometry, srid)
-    ];
-
-    var insertQuery = `INSERT INTO ${target} (geojson_id, properties, geometry) VALUES ($1, $2, $3)`;
-
-    client.query(insertQuery, params, function(err) {
-      if (err) {
-        console.warn(err);
-      }
-
-      itemsProcessed++;
-      if (itemsProcessed === array.length) {
-        callback(null, data);
-      }
-    });
+  client.on("drain", function() {
+    console.log("drained.");
   });
+
+  return {
+    addData: function(data, target, callback) {
+      // TODO make this a promise rather than a callback, so you can async/await it
+
+      // TODO make this configurable, sample it from the features list,
+      // although setting CRSes is not allowed in latest version of geojson standard
+
+      var srid = 4326;
+
+      // TODO make this promise-based rather than the ugly incrementer
+      var itemsProcessed = 0;
+      getFeatures(data).forEach(function(feature, index, array) {
+        var params = [
+          feature.id,
+          feature.properties,
+          asWKT(feature.geometry, srid)
+        ];
+
+        var insertQuery = `INSERT INTO ${target} (geojson_id, properties, geometry) VALUES ($1, $2, $3)`;
+
+        client.query(insertQuery, params, function(err) {
+          if (err) {
+            console.warn(err);
+          }
+
+          itemsProcessed++;
+          if (itemsProcessed === array.length) {
+            callback(null, data);
+          }
+        });
+      });
+    },
+
+    addTable: function(target, cb) {
+      
+      client.query(`DROP TABLE IF EXISTS ${target}`);
+      var createTableQuery = `CREATE TABLE ${target} (id BIGSERIAL UNIQUE NOT NULL, geojson_id VARCHAR, properties JSONB, geometry GEOMETRY, PRIMARY KEY(id))`;
+      console.log(createTableQuery);
+
+      client.query(createTableQuery, function(err) {
+        if (err) {
+          console.warn(err);
+          cb(err);
+        } else {
+          cb(false);
+        }
+      });
+    }
+  };
 };

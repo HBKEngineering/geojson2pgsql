@@ -2,7 +2,7 @@
 
 "use strict";
 var path = require("path");
-var lib = require("./index");
+var lib = require("./index")(process.env.PG_CONNECTION_STRING);
 
 var optimist = require("optimist").usage(
     "Usage: $0 [<options>] <GeoJSON file> [[schema.]<table>]"
@@ -19,8 +19,11 @@ var source = argv._.shift(),
 
 var data = require(path.join(process.cwd(), source));
 
-lib.addTable("features", data, function(err) {
+// TODO don't always drop/add table when invoking this function. maybe findOrAddTable instead?
+lib.addTable("features", function(err) {
   if (!err) {
-    lib.addData(data, "features");
+    lib.addData(data, "features", function(err, data){
+      console.log(err);
+    });
   }
 });
