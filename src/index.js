@@ -46,8 +46,7 @@ module.exports = function(connectionString) {
   });
 
   client.connect(function(err) {
-
-    console.log("connected")
+    console.log("connected");
     if (err) {
       throw err;
     }
@@ -78,12 +77,18 @@ module.exports = function(connectionString) {
         var insertQuery = `INSERT INTO ${target} (geojson_id, properties, geometry) VALUES ($1, $2, $3)`;
 
         client.query(insertQuery, params, function(err) {
+          // sweeping up all errors if they happen
+          // todo this could be so much nicer
+          let allErrors = [];
+
           if (err) {
-            console.warn(err);
+            allErrors.push(err);
           }
 
           itemsProcessed++;
-          if (itemsProcessed === array.length) {
+          if (itemsProcessed === array.length && allErrors.length) {
+            callback(allErrors);
+          } else if (itemsProcessed === array.length) {
             callback(null, data);
           }
         });
@@ -91,7 +96,6 @@ module.exports = function(connectionString) {
     },
 
     addTable: function(target, cb) {
-      
       client.query(`DROP TABLE IF EXISTS ${target}`);
       var createTableQuery = `CREATE TABLE ${target} (id BIGSERIAL UNIQUE NOT NULL, geojson_id VARCHAR, properties JSONB, geometry GEOMETRY, PRIMARY KEY(id))`;
       console.log(createTableQuery);
