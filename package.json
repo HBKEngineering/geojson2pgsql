@@ -1,6 +1,6 @@
 {
   "name": "geojson2pgsql",
-  "version": "0.0.4",
+  "version": "0.1.0",
   "description": "Import GeoJSON into PostgreSQL",
   "scripts": {
     "start": "./src/cli.js points.json"
