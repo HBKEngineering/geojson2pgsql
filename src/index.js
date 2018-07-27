@@ -98,18 +98,20 @@ module.exports = function(connectionString) {
       });
     },
 
-    addTable: function(target, cb) {
-      client.query(`DROP TABLE IF EXISTS ${target}`);
-      var createTableQuery = `CREATE TABLE ${target} (id BIGSERIAL UNIQUE NOT NULL, geojson_id VARCHAR, properties JSONB, geometry GEOMETRY, PRIMARY KEY(id))`;
-      console.log(createTableQuery);
+    addTable: function(target) {
+      return new Promise((resolve, reject) => {
+        client.query(`DROP TABLE IF EXISTS ${target}`);
+        var createTableQuery = `CREATE TABLE ${target} (id BIGSERIAL UNIQUE NOT NULL, geojson_id VARCHAR, properties JSONB, geometry GEOMETRY, PRIMARY KEY(id))`;
+        console.log(createTableQuery);
 
-      client.query(createTableQuery, function(err) {
-        if (err) {
-          console.warn(err);
-          cb(err);
-        } else {
-          cb(false);
-        }
+        client.query(createTableQuery, function(err) {
+          if (err) {
+            console.warn(err);
+            reject(err);
+          } else {
+            resolve(target);
+          }
+        });
       });
     }
   };

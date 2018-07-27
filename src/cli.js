@@ -19,16 +19,14 @@ var source = argv._.shift(),
 
 var data = require(path.join(process.cwd(), source));
 
-// TODO don't always drop/add table when invoking this function. maybe findOrAddTable instead?
-lib.addTable("features", async function(err) {
-  if (!err) {
-    try {
-      await lib.addData(data, 'features');
-    } catch(err){
-      console.error(err);
-      process.exit(err.code || 1);
-    }
-
-    process.exit(0);
+(async function(){
+  try {
+    let table = await lib.addTable("features");
+    await lib.addData(data, table);
+  } catch (err) {
+    console.error(err);
+    process.exit(err.code || 1);
   }
-});
+
+  process.exit(0);
+})();
