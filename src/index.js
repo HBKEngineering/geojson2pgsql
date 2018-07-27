@@ -57,40 +57,43 @@ module.exports = function(connectionString) {
   });
 
   return {
-    addData: function(data, target, callback) {
-      // TODO make this a promise rather than a callback, so you can async/await it
+    addData: function(data, target) {
+      return new Promise((resolve, reject) => {
+        // TODO make this configurable, sample it from the features list,
+        // although setting CRSes is not allowed in latest version of geojson standard
 
-      // TODO make this configurable, sample it from the features list,
-      // although setting CRSes is not allowed in latest version of geojson standard
+        var srid = 4326;
 
-      var srid = 4326;
+        // TODO make this promise-based rather than the ugly incrementer
+        var itemsProcessed = 0;
+        getFeatures(data).forEach(function(feature, index, array) {
+          var params = [
+            feature.id,
+            feature.properties,
+            asWKT(feature.geometry, srid)
+          ];
 
-      // TODO make this promise-based rather than the ugly incrementer
-      var itemsProcessed = 0;
-      getFeatures(data).forEach(function(feature, index, array) {
-        var params = [
-          feature.id,
-          feature.properties,
-          asWKT(feature.geometry, srid)
-        ];
+          var insertQuery = `INSERT INTO ${target} (geojson_id, properties, geometry) VALUES ($1, $2, $3)`;
 
-        var insertQuery = `INSERT INTO ${target} (geojson_id, properties, geometry) VALUES ($1, $2, $3)`;
+          client.query(insertQuery, params, function(err) {
+            console.log(insertQuery);
+            // sweeping up all errors if they happen
+            // todo this could be so much nicer
+            let allErrors = [];
 
-        client.query(insertQuery, params, function(err) {
-          // sweeping up all errors if they happen
-          // todo this could be so much nicer
-          let allErrors = [];
+            if (err) {
+              allErrors.push(err);
+            }
 
-          if (err) {
-            allErrors.push(err);
-          }
+            itemsProcessed++;
+            if (itemsProcessed === array.length && allErrors.length) {
+              console.log(allErrors);
 
-          itemsProcessed++;
-          if (itemsProcessed === array.length && allErrors.length) {
-            callback(allErrors);
-          } else if (itemsProcessed === array.length) {
-            callback(null, data);
-          }
+              reject(allErrors);
+            } else if (itemsProcessed === array.length) {
+              resolve(data);
+            }
+          });
         });
       });
     },
